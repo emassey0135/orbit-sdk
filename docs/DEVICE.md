@@ -76,6 +76,19 @@ is why it does it, and what to keep in mind when you go below its screen stack.
   the app comes back, and reads the settings again when it changed.
 - The Player has no liblouis service (`BrailleInput.available` is false).
 
+## Choosing a file
+
+- **Orbit's File Manager picks files for other apps** (`com.orbit.filemanager/.PickerActivity`,
+  exported, no permission), as Orbit's Editor asks it: the actions `com.orbit.file_picker.OPEN_FILE`,
+  `OPEN_FOLDER`, `SAVE_FILE` and `SAVE_FOLDER`. It answers with the path chosen and a `content:` Uri
+  (its FileProvider, or a document Uri on a USB drive) granted to the caller to read and write,
+  persistable, for a folder everything under it. The SDK's `FilePicker` asks it.
+- **Saving needs an extension**: a save with none offered is refused, said aloud, and answered as
+  cancelled. A name typed without one gets the extension chosen; the file is not made.
+- **Opening a folder chooses the one the person is in.**
+- **Android's own picker (DocumentsUI) is there but not for the person**: Orbit's screen reader
+  clicks inside it by itself, so an app should not send anyone there.
+
 ## Trying an app without the device in hand
 
 - Nothing can press Orbit's keypad over adb. Give `OrbitSession` a `debugKeys` broadcast action,

@@ -224,6 +224,39 @@ another language. `Letters` says which key presses a letter.
 common words. An app's screen code compiles against either by changing its imports; the session
 and the activity's wiring are each device's own.
 
+## Choosing a file or a folder
+
+`FilePicker` (`dev.emassey0135.orbit.files`) asks Orbit's own File Manager to choose, as Orbit's
+built-in apps do: a file to open, where to save one, or a folder. Its picker works with the keypad
+and reads itself; Android's own picker (DocumentsUI) is on the device too, but Orbit's screen reader
+clicks through it by itself, so an app should not send the person there.
+
+```kotlin
+private val choose = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+    val file = FilePicker.picked(result.resultCode, result.data) ?: return@registerForActivityResult
+    thread { file.openInput(this).use { input -> … } }
+}
+
+FilePicker.launch(FileRequest(PickKind.OPEN_FILE, title = "Open", extensions = listOf("txt"))) { choose.launch(it) }
+```
+
+- **`FileRequest`**: `kind` (`OPEN_FILE`, `SAVE_FILE`, `OPEN_FOLDER`), `title`, `extensions` (without
+  their dots; opening lists only those, saving adds the first to a name typed without one),
+  `suggestedName` for a save, and `startIn`, the folder to open in. Orbit's File Manager saves only
+  with an extension: a save with none, given or in its suggested name, is refused by `intent`.
+- **`launch(request, start)`** builds the intent and starts it with `start`, and says whether it
+  started (false where the File Manager is not there); `intent(request)` is the intent alone, and
+  `isAvailable(context)` whether the File Manager is there to answer.
+- **`picked(resultCode, data)`** is what was chosen, or null when the person cancelled: a
+  `PickedFile` with its `path` and the `content:` `uri` the File Manager grants the app to read and
+  write (persistable, and for a folder everything under it). No storage permission is needed for a
+  file chosen: `openInput(context)` and `openOutput(context)` go through the Uri. A save's file is
+  not made until it is written. `name` and `parent` give its name and folder, the folder to start
+  the next request in.
+
+The BrailleSense SDK's `FilePicker` has the same shape, so an app asks both devices alike; its File
+Manager answers with a path alone.
+
 ## Below the stack
 
 For an app that draws its screens its own way.
