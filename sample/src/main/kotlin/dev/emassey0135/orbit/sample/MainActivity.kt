@@ -29,7 +29,7 @@ class MainActivity : Activity() {
         ui.onEmpty = ::finish
         ui.list(
             "Notes", ::rows, empty = "No notes",
-            actions = { listOf(Action("New note", 'n') { newNote() }, Action("Sort", 's', asks = true) { sort() }) },
+            actions = { listOf(Action("New note", 'n') { newNote() }, Action("Sort", 's') { sort() }) },
         )
         session.created()
     }

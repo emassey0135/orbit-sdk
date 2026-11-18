@@ -332,7 +332,7 @@ public class OrbitUi(
         }
         val actions = screen.inHandActions() + screen.actions()
         if (actions.isEmpty()) return refuse()
-        val items = actions.map { MenuItem(it.name, it.letter, value = it, asks = it.asks) }
+        val items = actions.map { MenuItem(it.name, it.letter, value = it) }
         push(MenuScreen(items) { action -> if (action != null) acted(screen, action.run) })
     }
 

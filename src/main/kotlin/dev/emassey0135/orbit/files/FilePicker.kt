@@ -24,8 +24,7 @@ import android.net.Uri
  *
  * The File Manager answers with the path chosen and a `content:` Uri it grants the app to read and
  * write (persistable, and for a folder everything under it too), so an app needs no storage
- * permission to use a file it was given ([PickedFile.openInput], [PickedFile.openOutput]). The same
- * shape as the BrailleSense SDK's `FilePicker`, so an app asks both devices alike.
+ * permission to use a file it was given ([PickedFile.openInput], [PickedFile.openOutput]).
  */
 public object FilePicker {
     /** The File Manager's package. */
