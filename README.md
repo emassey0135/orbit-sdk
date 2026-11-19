@@ -15,8 +15,8 @@ devices behave, their user guides, and study of how their own apps use the devic
 Nothing in it is copied from Orbit's apps. The T9 input and the Player's list finding are ported
 from the Satellite launcher (Apache-2.0, by the same author).
 
-The library depends on nothing but Android. The BrailleSense SDK, for the HIMS BrailleSense 7, has
-the same screen stack under the same names, so an app's screens can be written once for both.
+The library depends on nothing but Android. Everything in it follows Orbit's own apps: nothing in
+its API is there for another device's sake.
 
 ## What a device needs
 
@@ -178,12 +178,11 @@ the first two optional:
 | `detail` | Said after the text, with a comma: its state, its count. |
 | `expanded`, `fold` | A row that folds: Right unfolds it, Left folds it. |
 | `toggle` | Select on a row with no `open`: a check box's change, said once the app has made it. |
-| `delete` | Space with D deletes it. |
+| `delete` | Space with D deletes it, as Orbit's Alarm Clock deletes an alarm; Dot 8 with D, as its File Manager deletes, where the app's `Letters` keep Space with D. |
 | `title` | Its name alone, for the menu of its actions. |
 
-`Action(name, letter, asks, run)` is something the menu key offers; `asks` (it opens a dialog) is
-the BrailleSense's mark and changes nothing on Orbit. `MenuItem(name, letter, children, value)` is
-an item of `menu`.
+`Action(name, letter, run)` is something the menu key offers. `MenuItem(name, letter, children,
+value)` is an item of `menu`.
 
 ### The keys, as Orbit's own apps have them
 
@@ -216,13 +215,13 @@ in hand (`inHand`), the person's moves (`moved`) and finding by letter (`findLet
 `UiWords` holds the few words the stack says itself, in English by default; pass your own for
 another language. `Letters` says which key presses a letter.
 
-### The same shape as the BrailleSense SDK
+### Beside the BrailleSense SDK
 
-`BrailleSenseUi` in the BrailleSense SDK has the same members under the same names: `list`, `menu`,
-`askLine`, `confirm`, `choose`, `form`, `refresh`, `land`, `announce`, `message`, `refused`,
-`batch`, `launch`, `onEmpty`, and `Item`, `Action`, `MenuItem`, `Field`, `FormValues` and `UiWords`'
-common words. An app's screen code compiles against either by changing its imports; the session
-and the activity's wiring are each device's own.
+The BrailleSense SDK, for the HIMS BrailleSense 7, is built the same way from its own device. Where
+the two devices agree, the two stacks use the same names (`list`, `menu`, `askLine`, `confirm`,
+`choose`, `form`, `refresh`, `land`, `announce`, `Item`, `Action`, `MenuItem`, `Field`,
+`FormValues`), so an app for both reads alike; where they differ, each follows its own device, and
+neither is kept in step with the other.
 
 ## Choosing a file or a folder
 
@@ -254,8 +253,8 @@ FilePicker.launch(FileRequest(PickKind.OPEN_FILE, title = "Open", extensions = l
   not made until it is written. `name` and `parent` give its name and folder, the folder to start
   the next request in.
 
-The BrailleSense SDK's `FilePicker` has the same shape, so an app asks both devices alike; its File
-Manager answers with a path alone.
+The BrailleSense SDK has a `FilePicker` of its own for that device's File Manager, which answers with
+a path alone.
 
 ## Below the stack
 

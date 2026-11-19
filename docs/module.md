@@ -13,12 +13,12 @@ do that an app must fit.
 
 The screen stack: `OrbitUi` and its asks (`list`, `menu`, `askLine`, `confirm`, `choose`, `form`),
 the `Item`s, `Action`s, `MenuItem`s and `Field`s they take, and `Screen` and `ListScreen` for
-screens of an app's own. The same shape as the BrailleSense SDK's `BrailleSenseUi`.
+screens of an app's own.
 
 # Package dev.emassey0135.orbit.files
 
 Choosing a file or a folder through Orbit's own File Manager (`FilePicker`, `FileRequest`,
-`PickedFile`): the same shape as the BrailleSense SDK's.
+`PickedFile`).
 
 # Package dev.emassey0135.orbit
 

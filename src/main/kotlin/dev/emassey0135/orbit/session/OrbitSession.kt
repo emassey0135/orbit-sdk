@@ -18,8 +18,7 @@ import dev.emassey0135.orbit.RootFailure
  * braille input ([braille]); and the keypad's keys, on the main thread ([onKey]), only while the
  * activity is in front ([claim]).
  *
- * The activity hands it its lifecycle, as the BrailleSense SDK's `BrailleSenseSession` is handed
- * one: [created] in `onCreate`, [resumed] in `onResume`, [paused] first thing in `onPause`,
+ * The activity hands it its lifecycle: [created] in `onCreate`, [resumed] in `onResume`, [paused] first thing in `onPause`,
  * [windowFocus] from `onWindowFocusChanged`, and [destroyed] in `onDestroy`. Orbit sends the keypad
  * to an app only when it speaks for itself: Satellite's hook does that for an app whose manifest
  * has the `orbit.self_voicing` meta-data.

@@ -4,11 +4,7 @@ import dev.emassey0135.orbit.BrailleLetters
 import dev.emassey0135.orbit.Key
 import dev.emassey0135.orbit.OrbitMenu
 
-/**
- * One row of a list ([OrbitUi.list]), read again at each [OrbitUi.refresh]. Its first eleven
- * parameters are the BrailleSense SDK's `Item`'s, by name and in order, so a screen's rows are
- * written once for both devices.
- */
+/** One row of a list ([OrbitUi.list]), read again at each [OrbitUi.refresh]. */
 public class Item(
     /** What names the row across a refresh, so the row in hand stays on it. */
     public val key: String,
@@ -31,7 +27,10 @@ public class Item(
      * made it, when it reads otherwise after [OrbitUi.refresh].
      */
     public val toggle: (() -> Unit)? = null,
-    /** Space with D on the row (Dot 8 with D where the app's [Letters] keep Space with it): deletes it. */
+    /**
+     * Space with D on the row, as Orbit's Alarm Clock deletes an alarm (Dot 8 with D, as its File
+     * Manager deletes, where the app's [Letters] keep Space with D): deletes it.
+     */
     public val delete: (() -> Unit)? = null,
     /** Its name alone, without what the line says after it: what a menu of its actions is named for. */
     public val title: String? = null,
@@ -46,18 +45,13 @@ public class Action(
     public val name: String,
     /** Its access key in the menu, and pressed with Space (or Dot 8) from the screen itself. */
     public val letter: Char? = null,
-    /**
-     * Whether running it opens a dialog. Orbit's menus do not mark one, so it changes nothing here;
-     * it is the BrailleSense SDK's mark, kept so an action is written once for both devices.
-     */
-    public val asks: Boolean = false,
     /** What choosing it does. */
     public val run: () -> Unit,
 )
 
 /**
  * An item of a menu ([OrbitUi.menu]): a submenu when it has [children], else one that gives [value]
- * when chosen. The BrailleSense SDK's `MenuItem` less its hot key, which on Orbit is a [MenuBar]'s.
+ * when chosen. A hot key that runs it from anywhere is a [MenuBar]'s.
  */
 public class MenuItem<out T>(
     /** What Orbit says of it. */
@@ -68,8 +62,6 @@ public class MenuItem<out T>(
     public val children: List<MenuItem<T>> = emptyList(),
     /** What choosing it gives. */
     public val value: T? = null,
-    /** Whether choosing it opens a dialog: Orbit's menus do not mark one, so it changes nothing here. */
-    public val asks: Boolean = false,
 )
 
 /** [this] as Orbit's own menu holds it. */
@@ -88,8 +80,7 @@ public class MenuBar(
 )
 
 /**
- * One control of a [OrbitUi.form], by the [key] its value is read back with. The same as the
- * BrailleSense SDK's `Field`.
+ * One control of a [OrbitUi.form], by the [key] its value is read back with.
  */
 public sealed class Field(
     /** What its value is read back by, in [FormValues]. */
@@ -140,8 +131,7 @@ public class FormValues(
  * What the layer itself says or names, in English by default: the buttons of its dialogs, what an
  * empty list says, finding by letter on the Player, a check box's state where it is a row, and what
  * a letter that reaches nothing says. Pass your own for another language; a word with a part is a
- * function of it. [ok], [cancel], [yes], [no], [empty], [noRowStartsWith] and [nothingOnLetter] are
- * the BrailleSense SDK's `UiWords`' too.
+ * function of it.
  */
 public data class UiWords(
     /** A form's button that confirms it. */

@@ -19,8 +19,7 @@ public enum class PickKind {
 }
 
 /**
- * What to ask the device's File Manager for, through [FilePicker]. The same in the BrailleSense SDK
- * (`dev.emassey0135.braillesense.files`), so an app asks both devices alike.
+ * What to ask Orbit's File Manager for, through [FilePicker].
  */
 public data class FileRequest(
     /** Opening a file, saving one, or choosing a folder. */
@@ -59,9 +58,8 @@ public data class PickedFile(
     /** The file or folder chosen, as an absolute path. */
     val path: String,
     /**
-     * A `content:` Uri for it that this app may read and write, where the File Manager grants one:
-     * Orbit's does, for a file and for a folder and everything in it; the BrailleSense's gives only
-     * the path, and this is null.
+     * A `content:` Uri for it that this app may read and write, granted by the File Manager for a
+     * file and for a folder and everything in it; null where its answer carried none.
      */
     val uri: Uri?,
 ) {
