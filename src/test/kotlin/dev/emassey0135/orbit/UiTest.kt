@@ -1,8 +1,11 @@
 package dev.emassey0135.orbit
 
 import dev.emassey0135.orbit.ui.Action
+import dev.emassey0135.orbit.ui.DialogControl
+import dev.emassey0135.orbit.ui.DialogScreen
 import dev.emassey0135.orbit.ui.Field
 import dev.emassey0135.orbit.ui.FormValues
+import dev.emassey0135.orbit.ui.HelperText
 import dev.emassey0135.orbit.ui.Item
 import dev.emassey0135.orbit.ui.Letters
 import dev.emassey0135.orbit.ui.ListScreen
@@ -670,6 +673,71 @@ class UiTest {
         assertEquals("waits behind the list just told", listOf("list Fruit 3 0 apple"), told.calls)
         passTime()
         assertEquals("say Saved", told.calls.last())
+    }
+
+    /** A dialog whose controls an app keeps: a pick of a list box, a check, Save with its letter, each control offering Delete. */
+    private class Kept(val done: MutableList<String>) : DialogScreen() {
+        var picked = 0
+        var on = false
+        var at = 0
+        val delete = Action("Delete", 'd') { done += "deleted" }
+        override val title = "Pick"
+        override fun controls(): List<DialogControl> = listOf(
+            DialogControl.Choice("task", "Task", listOf("Write", "Call"), picked, listBox = true, optionRows = listOf("Write, overdue", "Call"), actions = listOf(delete)),
+            DialogControl.Check("all", "All day", on, listOf(delete)),
+            DialogControl.Button("save", "Save", 's', listOf(delete)),
+        )
+        override val focus get() = at
+        override fun focusOn(at: Int) { this.at = at }
+        override fun lineDone(line: DialogControl.Line, text: String) {}
+        override fun lineSet(line: DialogControl.Line, text: String) {}
+        override fun chose(choice: DialogControl.Choice, option: Int): Boolean { picked = option; return true }
+        override fun toggled(check: DialogControl.Check): Boolean { on = !on; return on }
+        override fun pressed(control: DialogControl) { done += "pressed ${control.key} $picked" }
+    }
+
+    @Test fun anAppsDialogIsToldInItsRolesOnTheSpeakAndItsControlsOwnActionsAreOnTheMenuKey() {
+        val done = mutableListOf<String>()
+        ui.push(Kept(done))
+        assertEquals(listOf("dialog Pick", "choice Task Write"), told.calls)
+        down()
+        assertEquals("item Task 2 1 Call", told.calls.last())
+        select()
+        assertEquals(listOf("pressed task 1"), done)
+        menuKey()
+        assertEquals("menu item Delete 1 of 1", told.calls.last())
+        select()
+        assertEquals("deleted", done.last())
+        tab()
+        select()
+        assertEquals("check All day true", told.calls.last())
+        spaceWith('s')
+        assertEquals("pressed save 1", done.last())
+    }
+
+    @Test fun onThePlayerAnAppsListBoxIsARowPerOptionAndACheckIsSaidInTheDevicesWords() {
+        ui.phoneKeypad = true
+        val done = mutableListOf<String>()
+        val kept = Kept(done)
+        ui.push(kept)
+        assertEquals(listOf("dialog Pick", "item Pick 4 0 Write, overdue"), told.calls)
+        phone("3")
+        assertEquals("item Pick 4 2 All day, checked", told.calls.last())
+        phone("2")
+        assertEquals(listOf("pressed task 1"), done)
+    }
+
+    @Test fun theHelperTextShowsWhatOrbitIsToldWithItsPlaceAndACheckInTheDevicesWords() {
+        var shown = ""
+        val words = OrbitWords(position = "%1\$d/%2\$d", checked = "ticked")
+        val helper = HelperText(told, words) { shown = it }
+        helper.focusList("Fruit", 3, 1, "banana")
+        assertEquals("Fruit\n\nbanana\n\n2/3", shown)
+        assertEquals("list Fruit 3 1 banana", told.calls.last())
+        helper.focusCheck("All day", true)
+        assertEquals("All day\n\nticked", shown)
+        helper.focusMenu("Delete", false, 'd', 1, 2)
+        assertEquals("Context menu\n\nDelete\n\n1/2", shown)
     }
 
     @Test fun anUnknownKeyOfAFormsValuesIsRefusedRatherThanReadAsEmpty() {

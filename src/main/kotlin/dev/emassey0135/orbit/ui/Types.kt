@@ -129,8 +129,8 @@ public class FormValues(
 
 /**
  * What the layer itself says or names, in English by default: the buttons of its dialogs, what an
- * empty list says, finding by letter on the Player, a check box's state where it is a row, and what
- * a letter that reaches nothing says. Pass your own for another language; a word with a part is a
+ * empty list says, finding by letter on the Player, and what a letter that reaches nothing says. A
+ * check box's state where it is a row is the device's ([dev.emassey0135.orbit.OrbitWords]). Pass your own for another language; a word with a part is a
  * function of it.
  */
 public data class UiWords(
@@ -148,10 +148,6 @@ public data class UiWords(
     val lettersOn: String = "Finding by letter on",
     /** Holding star on the Player turned finding by letter off. */
     val lettersOff: String = "Finding by letter off",
-    /** A check box's state, said in its row on the Player, where a form is a list. */
-    val checked: String = "checked",
-    /** A check box's state unchecked, said in its row on the Player. */
-    val notChecked: String = "not checked",
     /** A letter alone that no row of the list starts with. */
     val noRowStartsWith: (letter: Char) -> String = { "No row starts with $it" },
     /** Space or Dot 8 with a letter that nothing here has. */

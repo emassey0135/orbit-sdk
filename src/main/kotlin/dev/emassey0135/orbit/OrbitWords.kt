@@ -37,9 +37,27 @@ public data class OrbitWords(
     val symbols: String = "symbols",
     /** Root was refused or failed, `%s` what could not be read and why. */
     val rootFailed: String = "Could not read Orbit's settings: %s",
+    /**
+     * A check box's state, where the SDK must say what Orbit's reader says of one told with
+     * `focusCheck`: in a row of a dialog on the Player, and shown for a sighted helper
+     * ([dev.emassey0135.orbit.ui.HelperText]). Not yet checked against the reader's own strings.
+     */
+    val checked: String = "checked",
+    /** A check box's state unchecked, as [checked]. */
+    val notChecked: String = "not checked",
+    /** What Orbit's reader says as a menu opens unnamed (`menuOpened`), shown for a sighted helper. */
+    val contextMenu: String = "Context menu",
+    /**
+     * A row's place in its list, `%1$d` its number from 1 and `%2$d` how many: what Orbit's reader
+     * says after a row, shown for a sighted helper. Not yet checked against the reader's own strings.
+     */
+    val position: String = "%1\$d of %2\$d",
     /** The cells the device's edit fields name rather than translate (see [CellNames]). */
     val cellNames: CellNames = CellNames(),
 ) {
+    /** Row [number] (from 1) of [count], as [position] says it. */
+    public fun place(number: Int, count: Int): String = position.format(number, count)
+
     /** What T9's [mode] is called. */
     public fun mode(mode: T9Input.Mode): String = when (mode) {
         T9Input.Mode.LOWERCASE -> lowercase

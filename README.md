@@ -206,14 +206,30 @@ value)` is an item of `menu`.
 
 ### Screens of your own
 
-Subclass `Screen`, or `ListScreen` for a list. A screen says what it is (`tellShown`) and what moved
+Subclass `Screen`, `ListScreen` for a list, or `DialogScreen` for a dialog. A screen says what it is (`tellShown`) and what moved
 (`tellMoved`, `refresh`, `land`), may take keys first (`key`), Back (`back`) and Space with a letter
 (`letter`), names its menu (`actions`, `inHandActions`, `menuBar`), says when what it shows has
 arrived (`loaded`), and whether it still stands (`stands`). `ListScreen` adds the row the app holds
 in hand (`inHand`), the person's moves (`moved`) and finding by letter (`findLetter`).
 
+`DialogScreen` is a dialog over controls your app keeps, for one whose controls change as it is
+worked (fields your data model checks, a line completed underneath). It reads `controls()`
+(`DialogControl.Line`, `Choice`, a list box when `listBox`, `Check`, `Button` with its letter,
+`Text`, each with `actions` for the menu key while it is in hand) and `focus` each time, and hands
+back what the person did: `focusOn`, `typed`, `lineDone`, `lineSet`, `chose`, `toggled`, `pressed`,
+`cancelled`, and `completing` and `complete` for a line that completes. The device the keys say this
+is decides how it works, as for `form`, which is built on it: on the Speak, Orbit's own dialog, each
+control told in its role; on the Player, rows, a line or a combo box opening a screen of its own, a
+list box's options rows themselves, a check box turned over with Select and said in `OrbitWords`'
+`checked` and `notChecked`. `lineFills` makes a dialog of one line the Player's whole screen, its
+buttons on the menu key; `toldAsDialog` false tells a page of settings as a list there.
+
 `UiWords` holds the few words the stack says itself, in English by default; pass your own for
 another language. `Letters` says which key presses a letter.
+
+`HelperText` wraps the reader you give `OrbitUi.on`, handing your app what Orbit is told as text for
+a sighted helper (the devices have no screen; a mirror or a screenshot shows a view of yours): the
+list or dialog, the row or control in hand, and its place, in `OrbitWords`' terms.
 
 ### Beside the BrailleSense SDK
 

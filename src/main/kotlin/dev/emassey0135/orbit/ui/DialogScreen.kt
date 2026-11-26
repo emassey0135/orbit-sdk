@@ -6,228 +6,495 @@ import dev.emassey0135.orbit.ListFinder
 import dev.emassey0135.orbit.OrbitDialog
 import dev.emassey0135.orbit.OrbitReader
 
-/** A control of a [DialogScreen], holding what the person made of it. */
-internal sealed class Control(val key: String, val label: String) {
-    class Edit(val field: Field.Line) : Control(field.key, field.label) {
-        var value = field.value
-        var editor: EditBox? = null
-        var editorPhone = false
-    }
+/**
+ * One control of a [DialogScreen], as the app holds it now: read afresh each time the dialog is,
+ * so a control the app changed underneath (a line completed, a choice the app moved) is told as it
+ * now stands.
+ */
+public sealed class DialogControl(
+    /** What names it across a change. */
+    public val key: String,
+    /** What Orbit names it. */
+    public val label: String,
+    /** Its own actions, first on the menu key's menu while it is in hand, as a row's are. */
+    public val actions: List<Action>,
+) {
+    /** An edit box holding [value]; several lines when [multiLine], where Dot 8 starts a line. [hint] is said after it. */
+    public class Line(
+        key: String,
+        label: String,
+        public val value: String = "",
+        public val hint: String = "",
+        public val multiLine: Boolean = false,
+        actions: List<Action> = emptyList(),
+    ) : DialogControl(key, label, actions)
 
-    class Combo(val field: Field.Choice) : Control(field.key, field.label) {
-        var selected = field.selected.coerceIn(0, (field.options.size - 1).coerceAtLeast(0))
-    }
+    /**
+     * A combo box of [options], [selected] in hand; a list box when [listBox], whose option is
+     * picked with Select. On the Player a list box's options are rows of their own, each read as
+     * [optionRows] has it (an option with why it is offered).
+     */
+    public class Choice(
+        key: String,
+        label: String,
+        public val options: List<String>,
+        public val selected: Int = 0,
+        public val listBox: Boolean = false,
+        public val optionRows: List<String> = options,
+        actions: List<Action> = emptyList(),
+    ) : DialogControl(key, label, actions)
 
-    class Check(field: Field.Check) : Control(field.key, field.label) {
-        var checked = field.checked
-    }
+    /** A check box, [checked] or not. */
+    public class Check(
+        key: String,
+        label: String,
+        public val checked: Boolean = false,
+        actions: List<Action> = emptyList(),
+    ) : DialogControl(key, label, actions)
 
-    class Text(val field: Field.Text) : Control(field.key, "")
+    /** A button; Space (or Dot 8) with [letter] presses it from anywhere in the dialog. */
+    public class Button(
+        key: String,
+        label: String,
+        public val letter: Char? = null,
+        actions: List<Action> = emptyList(),
+    ) : DialogControl(key, label, actions)
 
-    class Button(key: String, label: String, val press: () -> Unit) : Control(key, label)
-
-    companion object {
-        fun of(field: Field): Control = when (field) {
-            is Field.Line -> Edit(field)
-            is Field.Choice -> Combo(field)
-            is Field.Check -> Check(field)
-            is Field.Text -> Text(field)
-        }
-    }
+    /** A line to read, [value], which holds nothing. */
+    public class Text(key: String, public val value: String, actions: List<Action> = emptyList()) : DialogControl(key, "", actions)
 }
 
 /**
- * A dialog as Orbit's own are, the Editor's Save As: on the Speak, told as a dialog, then each
- * control reached in its role, Tab and Shift-Tab going round them and each key doing what
- * [OrbitDialog.does] says. The Player has no Tab, so there its controls are the rows of a list: a
- * line or a choice opens a screen of its own, a check turns over, a button presses. Which the person has is the last key's, so the same dialog serves both.
+ * A dialog as Orbit's own are, for whichever device the keys say this is, over controls the app
+ * keeps ([controls], [focus]) and changes as the person works them. Subclass it, or use
+ * [OrbitUi.form] and [OrbitUi.confirm], which are built on it.
  *
- * Select in a line of one presses [default]; Escape, Dot 7 off a line and Back close it. [closing]
- * is called once as it closes, whatever closed it.
+ * On the Speak it is told as a dialog ([prompt]), then each control as it is reached, in its role:
+ * Tab and Shift-Tab go round them, each active as soon as it is reached, as in the Editor's Save
+ * As, and each key does what [OrbitDialog.does] says. A line types at once in the SDK's [EditBox];
+ * Select in a line of one is [lineDone]. The menu key offers the control in hand's own actions.
+ *
+ * The Player has no Tab, so there the controls are the rows of a list: a line opens an edit box of
+ * its own, a combo box a list of its options, a list box's options are rows themselves, a check box
+ * turns over with Select, a button presses. Where [lineFills], a dialog that is one line and its
+ * buttons, the line is the whole screen and the menu key offers the buttons. A dialog that is a page
+ * of settings rather than a question is told as a list there ([toldAsDialog]).
+ *
+ * Which device the person has is the last key's, so the same dialog serves both. Escape, Space
+ * with E or Z, and Dot 7 off a line are [cancelled]; Back is the stack's, through [back].
  */
-internal class DialogScreen(
-    title: String,
-    private val controls: List<Control>,
-    start: Int,
-    private val default: Control.Button?,
-    private val closing: () -> Unit,
-) : ListScreen(title, { emptyList() }, "") {
-    private var focus = start.coerceIn(0, (controls.size - 1).coerceAtLeast(0))
-    private var announced = false
+public abstract class DialogScreen : ListScreen("", { emptyList() }, "") {
+    /** What Orbit is told as the dialog opens: its title, then what is read before its first control. */
+    public open val prompt: String get() = title
 
-    init {
-        controls.getOrNull(focus)?.let { hold(it.key) }
+    /** The controls in tab order, as they stand now. */
+    public abstract fun controls(): List<DialogControl>
+
+    /** The control in hand, by its place in [controls]. */
+    public abstract val focus: Int
+
+    /** The person reached the control at [at]: Tab, Shift-Tab, or a row of it on the Player. */
+    protected abstract fun focusOn(at: Int)
+
+    /** [line] typed to [text], the caret at [caret], as it changes. */
+    protected open fun typed(line: DialogControl.Line, text: String, caret: Int) {}
+
+    /** Select in a line of one on the Speak, or the whole-screen line confirmed on the Player. */
+    protected abstract fun lineDone(line: DialogControl.Line, text: String)
+
+    /** The Player's edit box of [line] confirmed: the line holds [text], nothing pressed. */
+    protected abstract fun lineSet(line: DialogControl.Line, text: String)
+
+    /** [choice] moved to [option]; false refuses it, with the error tone. */
+    protected abstract fun chose(choice: DialogControl.Choice, option: Int): Boolean
+
+    /** [check] turned over: what it holds now, or null where it was refused. */
+    protected abstract fun toggled(check: DialogControl.Check): Boolean?
+
+    /** A button pressed, or a list box's option picked: Select or Dot 8 on it, or its letter. */
+    protected abstract fun pressed(control: DialogControl)
+
+    /** Escape, Space with E or Z, or Dot 7 off a line: closed unanswered. */
+    protected open fun cancelled(): Unit = ui.close(this)
+
+    /** The next option of [choice] starting with [letter], from the one in hand; null for none. */
+    protected open fun findOption(choice: DialogControl.Choice, letter: Char): Int? =
+        ListFinder.next(choice.options, choice.selected, letter.toString())
+
+    /** Whether there is something to complete in [line] now, for a line that completes; null for one that never does. */
+    protected open fun completing(line: DialogControl.Line): (() -> Boolean)? = null
+
+    /** The completions of [line], asked for with Down: put one in with [putInLine]. */
+    protected open fun complete(line: DialogControl.Line) {}
+
+    /** On the Player, whether the dialog's line is the whole screen, its menu its buttons. */
+    public open val lineFills: Boolean get() = false
+
+    /** On the Player, whether it is told as a dialog (a question) rather than a list (a page of settings). */
+    public open val toldAsDialog: Boolean get() = true
+
+    /** [text] put into the line [key], the caret at [caret]: a completion chosen. */
+    public fun putInLine(key: String, text: String, caret: Int) {
+        val line = controls().firstOrNull { it.key == key } as? DialogControl.Line ?: return
+        editorOf(line).replace(text, caret)
     }
 
-    /** What the form holds now: a line as typed, its word in progress taken in. */
-    fun values(): FormValues = FormValues(
-        controls.filterIsInstance<Control.Edit>().associate { it.key to valueOf(it) },
-        controls.filterIsInstance<Control.Combo>().associate { it.key to it.selected },
-        controls.filterIsInstance<Control.Check>().associate { it.key to it.checked },
-    )
+    private val inPlace: Boolean get() = !ui.phoneKeypad
 
-    private fun valueOf(edit: Control.Edit): String = edit.editor?.text() ?: edit.value
+    private val held: DialogControl? get() = controls().getOrNull(focus)
+
+    private var announced = false
+
+    /** The control last told, so a refresh that moved the control in hand tells it and one that did not says nothing. */
+    private var toldControl: String? = null
 
     // ---- the Player: the controls as rows ----------------------------------------------
 
-    override fun items(): List<Item> = controls.map { Item(it.key, rowText(it), rowOpen(it)) }
+    /** The dialog's line: the one in hand, else its first. */
+    private fun line(): DialogControl.Line? =
+        held as? DialogControl.Line ?: controls().firstNotNullOfOrNull { it as? DialogControl.Line }
 
-    private fun rowText(control: Control): String = when (control) {
-        is Control.Edit -> joined(control.label, valueOf(control).ifEmpty { ui.orbitWords.blank })
-        is Control.Combo -> joined(control.label, control.field.options.getOrNull(control.selected).orEmpty())
-        is Control.Check -> joined(control.label, if (control.checked) ui.words.checked else ui.words.notChecked)
-        is Control.Text -> control.field.value
-        is Control.Button -> control.label
+    /** Whether the Player shows the dialog's line as the whole screen. */
+    private val lineShown: Boolean get() = !inPlace && lineFills && line() != null
+
+    override fun items(): List<Item> {
+        if (inPlace || lineShown) return emptyList()
+        return controls().flatMapIndexed { at, control -> rowsOf(at, control) }
     }
 
-    private fun joined(label: String, value: String): String = listOf(label, value).filter { it.isNotEmpty() }.joinToString(", ")
-
-    private fun rowOpen(control: Control): () -> Unit = when (control) {
-        is Control.Edit -> {
-            {
-                ui.askLine(control.label, valueOf(control), control.field.hint, control.field.multiLine) { typed ->
-                    if (typed != null) {
-                        control.value = typed
-                        control.editor = null
-                    }
+    private fun rowsOf(at: Int, control: DialogControl): List<Item> = when (control) {
+        is DialogControl.Line -> listOf(
+            Item(control.key, control.label, {
+                focusOn(at)
+                ui.askLine(control.label, control.value, control.hint, control.multiLine) { typed ->
+                    if (typed != null) lineSet(control, typed)
                 }
+            }, control.actions, detail = control.value.ifEmpty { ui.orbitWords.blank }, title = control.label),
+        )
+        is DialogControl.Choice -> if (control.listBox) {
+            control.options.indices.map { option ->
+                Item("${control.key}:$option", control.optionRows.getOrNull(option) ?: control.options[option], {
+                    focusOn(at)
+                    if (chose(control, option)) pressed(control) else ui.refuse()
+                }, control.actions)
+            }
+        } else {
+            listOf(
+                Item(control.key, control.label, {
+                    focusOn(at)
+                    ui.choose(control.label, control.options, control.selected) { option ->
+                        if (option != null && !chose(control, option)) ui.refuse()
+                    }
+                }, control.actions, detail = control.options.getOrNull(control.selected).orEmpty(), title = control.label),
+            )
+        }
+        is DialogControl.Check -> listOf(
+            Item(
+                control.key, control.label, actions = control.actions,
+                detail = if (control.checked) ui.orbitWords.checked else ui.orbitWords.notChecked,
+                toggle = {
+                    focusOn(at)
+                    if (toggled(control) == null) ui.refuse() else refresh(true)
+                },
+                title = control.label,
+            ),
+        )
+        is DialogControl.Button -> listOf(
+            Item(control.key, control.label, {
+                focusOn(at)
+                pressed(control)
+            }, control.actions, control.letter),
+        )
+        is DialogControl.Text -> listOf(Item(control.key, control.value, actions = control.actions))
+    }
+
+    override fun moved(item: Item) {
+        val at = controls().indexOfFirst { item.key == it.key || item.key.startsWith(it.key + ":") }
+        if (at >= 0 && at != focus) focusOn(at)
+    }
+
+    /** The control in hand is the app's: on the Player its row, on the Speak what Orbit is told of. */
+    override fun inHand(): String? = held?.key
+
+    override fun inHandActions(): List<Action> = if (inPlace) held?.actions.orEmpty() else super.inHandActions()
+
+    /** On the Player's whole-screen line, the menu is the dialog's buttons. */
+    override fun actions(): List<Action> {
+        if (!lineShown) return super.actions()
+        return controls().filterIsInstance<DialogControl.Button>().map { button ->
+            Action(button.label, button.letter) {
+                takeLine()
+                pressed(button)
             }
         }
-        is Control.Combo -> {
-            { ui.choose(control.label, control.field.options, control.selected) { at -> if (at != null) control.selected = at } }
-        }
-        is Control.Check -> {
-            {
-                control.checked = !control.checked
-                rebuild()
-                tellMoved()
-            }
-        }
-        is Control.Text -> {
-            {}
-        }
-        is Control.Button -> control.press
     }
 
     // ---- what Orbit is told ---------------------------------------------------------------
 
-    /** The dialog is told once, as it opens; coming back to it, only what is in hand. */
+    /**
+     * Newly shown. On the Speak the dialog is told once, as it opens, then the control in hand
+     * whenever it is reached. On the Player its whole-screen line is told as an edit box; otherwise
+     * its rows are a list, told as a dialog first where it is one.
+     */
     override fun tellShown() {
-        if (ui.phoneKeypad) {
-            rebuild()
-            if (!announced) reader.dialog(title, "", current?.line.orEmpty())
-            announced = true
-            tellMoved()
-        } else {
-            if (!announced) reader.dialog(title, "", "")
+        if (inPlace) {
+            if (!announced) reader.dialog(prompt, "", "")
             announced = true
             tellControl()
+            return
         }
+        if (lineShown) return tellLine()
+        if (!toldAsDialog) return super.tellShown()
+        rebuild()
+        if (!announced) reader.dialog(prompt, "", current?.line.orEmpty())
+        announced = true
+        tellMoved()
     }
 
     override fun refresh(tell: Boolean) {
-        if (ui.phoneKeypad) super.refresh(tell)
+        if (inPlace) {
+            if (tell && held?.key != toldControl) tellControl()
+            return
+        }
+        // The whole-screen line is told as it opens, its typing echoed as it goes.
+        if (lineShown) return
+        super.refresh(tell)
     }
 
     override fun land(key: String?) {
-        if (ui.phoneKeypad) super.land(key)
+        if (inPlace) return refresh(true)
+        if (lineShown) return
+        super.land(key)
     }
 
+    /** The control in hand, told to Orbit in its role. */
     private fun tellControl() {
-        when (val control = controls.getOrNull(focus) ?: return) {
-            is Control.Edit -> {
+        val control = held ?: return
+        toldControl = control.key
+        when (control) {
+            is DialogControl.Line -> {
                 ui.braille?.follow()
                 editorOf(control).focus()
-                val hint = control.field.hint
-                if (hint.isNotEmpty()) ui.afterTelling { if (ui.top === this && controls.getOrNull(focus) === control) reader.speakQueued(hint) }
+                if (control.hint.isNotEmpty()) ui.afterTelling { if (ui.top === this && toldControl == control.key) reader.speakQueued(control.hint) }
             }
-            is Control.Combo -> reader.focusChoice(
-                control.label, OrbitReader.ROLE_COMBO_BOX, control.field.options.size, control.selected,
-                control.field.options.getOrNull(control.selected).orEmpty(),
+            is DialogControl.Choice -> reader.focusChoice(
+                control.label, if (control.listBox) OrbitReader.ROLE_LIST_BOX else OrbitReader.ROLE_COMBO_BOX,
+                control.options.size, control.selected, control.options.getOrNull(control.selected).orEmpty(),
             )
-            is Control.Check -> reader.focusCheck(control.label, control.checked)
-            is Control.Button -> reader.focusControl(control.label, OrbitReader.ROLE_BUTTON)
-            is Control.Text -> reader.focusText(control.field.value)
+            is DialogControl.Check -> reader.focusCheck(control.label, control.checked)
+            is DialogControl.Button -> reader.focusControl(control.label, OrbitReader.ROLE_BUTTON)
+            is DialogControl.Text -> reader.focusText(control.value)
         }
     }
 
-    // ---- the Speak: the controls in place ------------------------------------------------
+    /** On the Player, the whole-screen line: told as an edit box, its hint after it. */
+    private fun tellLine() {
+        val line = line() ?: return
+        val at = controls().indexOf(line)
+        if (at >= 0 && at != focus) focusOn(at)
+        ui.braille?.follow()
+        editorOf(line).focus()
+        // What Orbit is told goes through its event queue, speech does not: the hint waits for the field.
+        if (line.hint.isNotEmpty()) ui.afterTelling { if (ui.top === this) reader.speakQueued(line.hint) }
+    }
+
+    // ---- the keys -----------------------------------------------------------------------
 
     override fun key(key: Key): Boolean {
-        // Left never leaves a dialog, on the Player either, whose Back does.
-        if (ui.phoneKeypad) return key == Key.Left || super.key(key)
-        val control = controls.getOrNull(focus) ?: return false
-        when (val does = OrbitDialog.does(key, kindOf(control))) {
-            OrbitDialog.Does.Next -> moveFocus(1)
-            OrbitDialog.Does.Previous -> moveFocus(-1)
-            OrbitDialog.Does.Cancel -> ui.close(this)
-            // A choice holds what it was moved to already: Select presses only a button.
-            OrbitDialog.Does.Press -> if (control is Control.Button) control.press()
-            OrbitDialog.Does.Toggle -> if (control is Control.Check) {
-                control.checked = !control.checked
-                reader.focusCheck(control.label, control.checked)
+        if (!inPlace) {
+            if (!lineShown) {
+                // Left never leaves a dialog, on the Player either, whose Back does.
+                return key == Key.Left || super.key(key)
             }
-            is OrbitDialog.Does.Step -> if (control is Control.Combo) choose(control, control.selected + does.by)
-            OrbitDialog.Does.First -> if (control is Control.Combo) choose(control, 0)
-            OrbitDialog.Does.Last -> if (control is Control.Combo) choose(control, control.field.options.size - 1)
-            is OrbitDialog.Does.Find -> if (control is Control.Combo) find(control, does.dots)
-            OrbitDialog.Does.Edit -> return control is Control.Edit && editorOf(control).key(key)
-            OrbitDialog.Does.Nothing -> {}
+            val line = line() ?: return false
+            // The whole-screen line's menu is the dialog's buttons; every other key is the line's.
+            if (key == Key.Menu) return false
+            editorOf(line).key(key)
+            return true
+        }
+        val control = held
+        if (control == null) {
+            return when (OrbitDialog.does(key, OrbitDialog.Control.TEXT)) {
+                OrbitDialog.Does.Next -> moveFocus(1)
+                OrbitDialog.Does.Previous -> moveFocus(-1)
+                OrbitDialog.Does.Cancel -> if (key == Key.Escape) true.also { cancelled() } else false
+                else -> false
+            }
+        }
+        when (val does = OrbitDialog.does(key, kindOf(control))) {
+            OrbitDialog.Does.Next -> return moveFocus(1)
+            OrbitDialog.Does.Previous -> return moveFocus(-1)
+            OrbitDialog.Does.Cancel -> cancelled()
             OrbitDialog.Does.NotTaken -> return false
+            OrbitDialog.Does.Nothing -> {}
+            OrbitDialog.Does.Edit -> return control is DialogControl.Line && editorOf(control).key(key)
+            // A combo box holds what it was moved to already: Select presses a button or picks a list box's option.
+            OrbitDialog.Does.Press -> if (control is DialogControl.Button || (control is DialogControl.Choice && control.listBox)) {
+                takeLine()
+                pressed(control)
+            }
+            OrbitDialog.Does.Toggle -> if (control is DialogControl.Check) {
+                val now = toggled(control)
+                if (now == null) ui.refuse() else reader.focusCheck(control.label, now)
+            }
+            is OrbitDialog.Does.Step -> if (control is DialogControl.Choice) choose(control, control.selected + does.by)
+            OrbitDialog.Does.First -> if (control is DialogControl.Choice) choose(control, 0)
+            OrbitDialog.Does.Last -> if (control is DialogControl.Choice) choose(control, control.options.size - 1)
+            is OrbitDialog.Does.Find -> if (control is DialogControl.Choice) {
+                val letter = ui.letters.of(does.dots)
+                val at = letter?.let { findOption(control, it) }
+                if (at == null) ui.refuse() else choose(control, at)
+            }
         }
         return true
     }
 
-    private fun kindOf(control: Control): OrbitDialog.Control = when (control) {
-        is Control.Edit -> OrbitDialog.Control.EDIT
-        is Control.Combo -> OrbitDialog.Control.COMBO_BOX
-        is Control.Check -> OrbitDialog.Control.CHECK_BOX
-        is Control.Button -> OrbitDialog.Control.BUTTON
-        is Control.Text -> OrbitDialog.Control.TEXT
+    /** Space (or Dot 8) with a button's letter presses it, from anywhere in the dialog. */
+    override fun letter(letter: Char): Boolean {
+        val button = controls().firstOrNull { it is DialogControl.Button && it.letter?.lowercaseChar() == letter } ?: return false
+        takeLine()
+        pressed(button)
+        return true
     }
 
-    private fun moveFocus(by: Int) {
-        if (controls.isEmpty()) return
-        // The line left keeps what was typed, its word in progress taken in.
-        (controls[focus] as? Control.Edit)?.let { it.value = valueOf(it) }
-        focus = Math.floorMod(focus + by, controls.size)
+    private fun kindOf(control: DialogControl): OrbitDialog.Control = when (control) {
+        is DialogControl.Line -> OrbitDialog.Control.EDIT
+        is DialogControl.Choice -> if (control.listBox) OrbitDialog.Control.LIST_BOX else OrbitDialog.Control.COMBO_BOX
+        is DialogControl.Check -> OrbitDialog.Control.CHECK_BOX
+        is DialogControl.Button -> OrbitDialog.Control.BUTTON
+        is DialogControl.Text -> OrbitDialog.Control.TEXT
+    }
+
+    /** The line in hand, what is being typed in it taken in: before leaving it or pressing a button, so a word still in cells is not lost. */
+    private fun takeLine() {
+        val line = (if (lineShown) line() else held) as? DialogControl.Line ?: return
+        val editor = editors[line.key]?.editor ?: return
+        val text = editor.text()
+        if (text != line.value) typed(line, text, text.length)
+    }
+
+    private fun moveFocus(by: Int): Boolean {
+        val count = controls().size
+        if (count == 0) return true
+        takeLine()
+        focusOn(Math.floorMod(focus + by, count))
         tellControl()
+        return true
     }
 
-    /** The combo box holds option [to], stopping at its ends with the error tone. */
-    private fun choose(combo: Control.Combo, to: Int) {
-        val options = combo.field.options
-        if (to !in options.indices) return ui.refuse()
-        combo.selected = to
-        reader.itemChanged(combo.label, options.size, to, options[to])
+    /** The choice moved to [to], told as Orbit's own combo boxes tell it; stopping at its ends with the error tone. */
+    private fun choose(choice: DialogControl.Choice, to: Int) {
+        if (to !in choice.options.indices || !chose(choice, to)) return ui.refuse()
+        reader.itemChanged(choice.label, choice.options.size, to, choice.options[to])
     }
 
-    private fun find(combo: Control.Combo, dots: Int) {
-        val letter = ui.letters.of(dots)?.toString() ?: return ui.refuse()
-        val at = ListFinder.next(combo.field.options, combo.selected, letter) ?: return ui.refuse()
-        choose(combo, at)
-    }
+    // ---- the lines ----------------------------------------------------------------------
 
-    /** The line's edit box, made again from what it holds if the keys turned out to be the other device's. */
-    private fun editorOf(edit: Control.Edit): EditBox {
-        val now = edit.editor
-        if (now != null && edit.editorPhone == ui.phoneKeypad) return now
-        if (now != null) edit.value = now.text()
-        edit.editorPhone = ui.phoneKeypad
-        return ui.editBox(
-            edit.label, edit.value, edit.field.multiLine,
-            confirmed = { typed ->
-                // Select in a line of one: the dialog's default, as Orbit's dialogs press theirs.
-                edit.value = typed
-                edit.editor = null
-                default?.press?.invoke()
+    private class Editing(val editor: EditBox, val from: String, val phone: Boolean)
+
+    private val editors = HashMap<String, Editing>()
+
+    /**
+     * The edit box of [line], made anew only when the app changed the line underneath, or the keys
+     * turned out to be the other device's.
+     */
+    private fun editorOf(line: DialogControl.Line): EditBox {
+        val editing = editors[line.key]
+        if (editing != null && editing.phone == ui.phoneKeypad && (line.value == editing.from || line.value == editing.editor.display())) {
+            return editing.editor
+        }
+        val editor = ui.editBox(
+            line.label, line.value, line.multiLine,
+            confirmed = { typed -> lineDone(line, typed) },
+            cancelled = ::cancelled,
+            changed = { typed, caret ->
+                val at = controls().indexOfFirst { it.key == line.key }
+                if (at >= 0 && at != focus) focusOn(at)
+                typed(line, typed, caret)
             },
-            cancelled = { ui.close(this) },
-        ).also { edit.editor = it }
+            completing = completing(line),
+            complete = { complete(line) },
+        )
+        editors[line.key] = Editing(editor, line.value, ui.phoneKeypad)
+        return editor
+    }
+
+    /** Orbit is told the dialog closed, where it was told one opened. */
+    override fun closed() {
+        if (announced) reader.dialogClosed()
+    }
+}
+
+/** [OrbitUi.form] and [OrbitUi.confirm]: a dialog holding its own controls, [closing] called once as it closes. */
+internal class FormDialog(
+    override val title: String,
+    fields: List<Field>,
+    buttons: List<Pair<String, String>>,
+    start: Int,
+    private val default: String?,
+    private val closing: (FormDialog, String?) -> Unit,
+) : DialogScreen() {
+    private var shown: MutableList<DialogControl> = (fields.map(::controlOf) + buttons.map { (key, label) -> DialogControl.Button(key, label) }).toMutableList()
+    private var pressedKey: String? = null
+
+    private var inHandAt = start.coerceIn(0, (shown.size - 1).coerceAtLeast(0))
+
+    override val focus: Int get() = inHandAt
+
+    override fun controls(): List<DialogControl> = shown
+
+    override fun focusOn(at: Int) {
+        inHandAt = at
+    }
+
+    /** What the form holds now. */
+    fun values(): FormValues = FormValues(
+        shown.filterIsInstance<DialogControl.Line>().associate { it.key to it.value },
+        shown.filterIsInstance<DialogControl.Choice>().associate { it.key to it.selected },
+        shown.filterIsInstance<DialogControl.Check>().associate { it.key to it.checked },
+    )
+
+    private fun put(control: DialogControl) {
+        val at = shown.indexOfFirst { it.key == control.key }
+        if (at >= 0) shown[at] = control
+    }
+
+    override fun typed(line: DialogControl.Line, text: String, caret: Int) =
+        put(DialogControl.Line(line.key, line.label, text, line.hint, line.multiLine))
+
+    override fun lineDone(line: DialogControl.Line, text: String) {
+        lineSet(line, text)
+        default?.let { key -> shown.firstOrNull { it.key == key }?.let(::pressed) }
+    }
+
+    override fun lineSet(line: DialogControl.Line, text: String) = typed(line, text, text.length)
+
+    override fun chose(choice: DialogControl.Choice, option: Int): Boolean {
+        put(DialogControl.Choice(choice.key, choice.label, choice.options, option))
+        return true
+    }
+
+    override fun toggled(check: DialogControl.Check): Boolean {
+        put(DialogControl.Check(check.key, check.label, !check.checked))
+        return !check.checked
+    }
+
+    override fun pressed(control: DialogControl) {
+        pressedKey = control.key
+        ui.close(this)
     }
 
     override fun closed() {
-        reader.dialogClosed()
-        closing()
+        super.closed()
+        closing(this, pressedKey)
+    }
+
+    private companion object {
+        fun controlOf(field: Field): DialogControl = when (field) {
+            is Field.Line -> DialogControl.Line(field.key, field.label, field.value, field.hint, field.multiLine)
+            is Field.Choice -> DialogControl.Choice(field.key, field.label, field.options, field.selected.coerceIn(0, (field.options.size - 1).coerceAtLeast(0)))
+            is Field.Check -> DialogControl.Check(field.key, field.label, field.checked)
+            is Field.Text -> DialogControl.Text(field.key, field.value)
+        }
     }
 }
