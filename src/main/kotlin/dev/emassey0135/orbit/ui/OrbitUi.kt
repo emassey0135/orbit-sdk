@@ -402,15 +402,8 @@ public class OrbitUi(
 
     /** Yes or No, [default] in hand first; [answered] gets false for No and for a dialog closed. */
     public fun confirm(question: String, default: Boolean = false, answered: (Boolean) -> Unit) {
-        var answer = false
-        lateinit var screen: DialogScreen
-        val yes = Control.Button(BUTTON + "yes", words.yes) {
-            answer = true
-            close(screen)
-        }
-        val no = Control.Button(BUTTON + "no", words.no) { close(screen) }
-        screen = DialogScreen(question, listOf(yes, no), if (default) 0 else 1, null) { answered(answer) }
-        push(screen)
+        val buttons = listOf(BUTTON + "yes" to words.yes, BUTTON + "no" to words.no)
+        push(FormDialog(question, emptyList(), buttons, if (default) 0 else 1, null) { _, pressed -> answered(pressed == BUTTON + "yes") })
     }
 
     /** [confirm], waited for. */
@@ -427,16 +420,8 @@ public class OrbitUi(
 
     /** A form of [fields], then OK and Cancel; [done] gets what it holds at OK, or null. */
     public fun form(title: String, fields: List<Field>, done: (FormValues?) -> Unit) {
-        var values: FormValues? = null
-        lateinit var screen: DialogScreen
-        val ok = Control.Button(BUTTON + "ok", words.ok) {
-            values = screen.values()
-            close(screen)
-        }
-        val cancel = Control.Button(BUTTON + "cancel", words.cancel) { close(screen) }
-        val controls = fields.map { Control.of(it) } + ok + cancel
-        screen = DialogScreen(title, controls, 0, ok) { done(values) }
-        push(screen)
+        val buttons = listOf(BUTTON + "ok" to words.ok, BUTTON + "cancel" to words.cancel)
+        push(FormDialog(title, fields, buttons, 0, BUTTON + "ok") { form, pressed -> done(if (pressed == BUTTON + "ok") form.values() else null) })
     }
 
     /** [form], waited for. */
