@@ -89,6 +89,18 @@ is why it does it, and what to keep in mind when you go below its screen stack.
 - **Android's own picker (DocumentsUI) is there but not for the person**: Orbit's screen reader
   clicks inside it by itself, so an app should not send anyone there.
 
+## Alarms and notifications
+
+- **Orbit's own Alarm Clock posts no notification.** As it rings it opens its dialog over whatever is
+  shown, through root's `am start` (Android starts no activity for an app in the background), having
+  woken the device; the dialog speaks the alarm and offers Snooze and Dismiss, and Back closes it.
+  `Foreground` does the same for an app's own activity.
+- **Orbit's own interface has no notification shade.** Satellite's launcher opens Android's (Space
+  with N, through root's `cmd statusbar expand-notifications`), where BackTalk reads each
+  notification and its buttons.
+- **Do Not Disturb is on at its highest setting as Orbit ships**, set by Orbit's launcher as it
+  starts; Satellite lets notifications through, and BackTalk speaks them as they come.
+
 ## Trying an app without the device in hand
 
 - Nothing can press Orbit's keypad over adb. Give `OrbitSession` a `debugKeys` broadcast action,
