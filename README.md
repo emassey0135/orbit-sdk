@@ -32,9 +32,9 @@ its API is there for another device's sake.
   Satellite's launcher then lists the app beside Orbit's own.
 - **A package name Orbit routes keys to**: not starting with `com.orbit.`, and not containing
   `inputmethod`.
-- **Root**, for reading Orbit's settings (the braille table, the selection mode, the typing echo).
-  Magisk ships on every Speak and Player. If root is refused, the person is told once and typing
-  goes on in the table last read.
+- **Root**, for reading Orbit's settings (the braille table, the selection mode, the typing echo)
+  and for coming to the front from the background (`Foreground`). Magisk ships on every Speak and
+  Player. If root is refused, the person is told once and typing goes on in the table last read.
 - Android 11 (the library's minSdk is 30), arm64.
 
 [docs/DEVICE.md](docs/DEVICE.md) has what the devices do that an app must fit: the keys each keeps
@@ -272,6 +272,30 @@ FilePicker.launch(FileRequest(PickKind.OPEN_FILE, title = "Open", extensions = l
 The BrailleSense SDK has a `FilePicker` of its own for that device's File Manager, which answers with
 a path alone.
 
+## Coming to the front
+
+Orbit's own Alarm Clock rings by opening its dialog over whatever is shown, waking the device.
+`Foreground` does the same for an app's own activity, for what cannot wait until the person next
+opens the app, such as a reminder going off:
+
+```kotlin
+// In a BroadcastReceiver's work, off the main thread: it runs `su`.
+Foreground.open(context, MainActivity::class.java, mapOf("reminder" to id))
+    .onFailure { /* root refused: the notification posted beside it is all the person gets */ }
+```
+
+- **`open(context, activity, extras)`** wakes the device and starts the activity in front through
+  root's `am start`, since Android starts no activity for an app in the background; `extras` are
+  its intent's string extras. A `singleTask` activity already running gets them in `onNewIntent`.
+  It fails, with why, where root is refused or the activity cannot be started.
+- **`wake(context)`** wakes the device for a moment and lets it sleep again by its own timeout:
+  the screen reader is silent while the device sleeps.
+
+What comes to the front should then be said as Orbit's own are, a dialog with its buttons
+(`DialogScreen`), and not ring on: a notification beside it, on a channel of its own, gives the
+sound and vibration once, through Do Not Disturb wherever Satellite lets notifications through,
+and stays in the shade Satellite's launcher opens (Space with N).
+
 ## Below the stack
 
 For an app that draws its screens its own way.
@@ -285,7 +309,7 @@ For an app that draws its screens its own way.
 | `OrbitMenu` | A menu like those of Orbit's Editor and File Manager: one list of items and submenus, Up and Down round a level, Right and Select into a submenu, Left back out, a letter an access key. |
 | `OrbitList`, `ListFinder` | How a list moves, and the Player's finding of a row by number or by letter. |
 | `OrbitDialog` | What a key does in a dialog, as in the Editor's Save As. |
-| `BrailleInput`, `OrbitSettings`, `Root` | The Speak's liblouis service in the person's table and selection mode, and Orbit's settings read through root. |
+| `BrailleInput`, `OrbitSettings`, `Root` | The Speak's liblouis service in the person's table and selection mode, and Orbit's settings read through root. `Foreground` is also over `Root`. |
 | `OrbitWords`, `CellNames` | What the device says in its own words: the fields' echo, the Editor's selection, T9's modes. English by default. |
 | `DebugKeys` | Orbit's keys pressed over adb, in a debuggable build. |
 
