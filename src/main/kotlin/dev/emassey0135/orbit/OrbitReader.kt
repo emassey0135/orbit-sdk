@@ -3,7 +3,9 @@ package dev.emassey0135.orbit
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.os.Bundle
+import android.util.Log
 import com.orbit.olympus_sdk.IOlympusSDKCallback
 import com.orbit.screenreader.IScreenReaderService
 import com.orbit.screenreader.ISettingsCallback
@@ -59,12 +61,17 @@ public class OrbitReader(context: Context, private val listener: Listener) : Rea
         override fun onUtteranceError(utteranceId: String?) {}
     }
 
+    /** Whether each key Orbit hands over is logged: in a debuggable build only, for finding what the keypad really sends. */
+    private val logsKeys = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+
     private val keys = object : IUARTKeypadCallback.Stub() {
         override fun onInternalKeyEvent(event: Bundle): Boolean {
             val code = event.getInt("keyCode", -1)
             if (code in 1000..1022) phoneKeypad = true else if (code >= 3000) phoneKeypad = false
-            val name = event.getString("keyName") ?: return claim.holding
-            return listener.key(KeyEvent(name, event.getInt("action", -1), event.getBoolean("isLongPress", false)), phoneKeypad)
+            val name = event.getString("keyName")
+            val taken = if (name == null) claim.holding else listener.key(KeyEvent(name, event.getInt("action", -1), event.getBoolean("isLongPress", false)), phoneKeypad)
+            if (logsKeys) Log.d(KEY_TAG, "${event.keySet().sorted().joinToString { "$it=${event.get(it)}" }} taken=$taken")
+            return taken
         }
 
         override fun onAdjustVolume(increase: Boolean) {}
@@ -280,6 +287,9 @@ public class OrbitReader(context: Context, private val listener: Listener) : Rea
 
     /** Orbit's roles of what is focused, and its sounds. */
     public companion object {
+        /** The log tag each key is logged under in a debuggable build: `adb logcat -s OrbitKeys`. */
+        public const val KEY_TAG: String = "OrbitKeys"
+
         /** A button. */
         public const val ROLE_BUTTON: Int = 1
         /** A check box. */

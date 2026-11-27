@@ -78,6 +78,9 @@ public class OrbitUi(
 
     private val stack = ArrayList<Screen>()
     private val decoder = KeyDecoder()
+
+    /** Whether each key is logged as decoded, with the screen it went to: in a debuggable build only (`OrbitReader.KEY_TAG`). */
+    private val logsKeys = context?.let { it.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0 } ?: false
     private var ready = false
 
     /** The screen last told as newly shown; another on top has yet to be. */
@@ -295,6 +298,7 @@ public class OrbitUi(
     public fun key(event: KeyEvent, phoneKeypad: Boolean) {
         this.phoneKeypad = phoneKeypad
         val key = decoder.decode(event)
+        if (logsKeys) android.util.Log.d(OrbitReader.KEY_TAG, "decoded $key on ${top?.javaClass?.simpleName} phone=$phoneKeypad")
         if (key == Key.None) return
         val screen = top ?: return
         if (key == Key.Back) backPressedOn = screen

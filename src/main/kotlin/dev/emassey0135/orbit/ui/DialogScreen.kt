@@ -396,11 +396,14 @@ public abstract class DialogScreen : ListScreen("", { emptyList() }, "") {
 
     /**
      * The edit box of [line], made anew only when the app changed the line underneath, or the keys
-     * turned out to be the other device's.
+     * turned out to be the other device's. The app holding what the box last handed it is no
+     * change: its answer to a letter can come in while the next is being tapped, and a box made
+     * anew then would throw the tapping away.
      */
     private fun editorOf(line: DialogControl.Line): EditBox {
         val editing = editors[line.key]
-        if (editing != null && editing.phone == ui.phoneKeypad && (line.value == editing.from || line.value == editing.editor.display())) {
+        val unchanged = editing != null && (line.value == editing.from || line.value == editing.editor.sent() || line.value == editing.editor.display())
+        if (editing != null && editing.phone == ui.phoneKeypad && unchanged) {
             return editing.editor
         }
         val editor = ui.editBox(
