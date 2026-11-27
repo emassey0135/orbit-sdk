@@ -111,3 +111,7 @@ is why it does it, and what to keep in mind when you go below its screen stack.
   focus and the keypad is not the app's.
 - What Orbit said is in its log: `adb shell setprop log.tag D`, then `olympus_SpeechManager`'s
   `sequence items` in `adb logcat`.
+- What the keypad really sends, in a debuggable build: `adb logcat -s OrbitKeys` has each key
+  Orbit hands over, whole (its code, name, action and long press, and whether it was taken), then
+  what the SDK made of it and the screen it went to. Keys sent over adb come in as decoded ones
+  alone.

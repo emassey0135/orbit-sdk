@@ -53,7 +53,7 @@ public class ReaderEditOutput(
     }.getOrNull()
 
     override fun say(text: String): Unit = reader.speak(text)
-    override fun candidate(character: Char, field: String): Unit = reader.characterTyped(character.toString(), field, false, null)
+    override fun candidate(character: Char, field: String): Unit = reader.characterTyped(character.toString(), field, character.isUpperCase(), null)
     override fun edited(name: String, content: String, cursor: Int, change: String): Unit = reader.editChanged(name, content, cursor, change)
     override fun playError(): Unit = reader.sound(OrbitReader.SOUND_ERROR)
 
