@@ -100,6 +100,12 @@ is why it does it, and what to keep in mind when you go below its screen stack.
   notification and its buttons.
 - **Do Not Disturb is on at its highest setting as Orbit ships**, set by Orbit's launcher as it
   starts; Satellite lets notifications through, and BackTalk speaks them as they come.
+- **DuraSpeed (`com.mediatek.duraspeed`) restricts every app not switched on in its list**: Android
+  then reports the app as background restricted (`RUN_ANY_IN_BACKGROUND` ignored) and holds its
+  alarms under "Pending user blocked background alarms" until it is opened. Its list
+  (`DuraSpeedMainActivity`) needs `com.mediatek.duraspeed.START_DURASPEED_APP`, MediaTek's own, so
+  no other app opens it; the app's own battery page (`android.settings.APP_BATTERY_SETTINGS`) is
+  where the person allows it. Whether DuraSpeed keeps that is still to be seen.
 
 ## Trying an app without the device in hand
 

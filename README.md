@@ -272,29 +272,49 @@ FilePicker.launch(FileRequest(PickKind.OPEN_FILE, title = "Open", extensions = l
 The BrailleSense SDK has a `FilePicker` of its own for that device's File Manager, which answers with
 a path alone.
 
-## Coming to the front
+## Alarms, reminders and notifications
 
-Orbit's own Alarm Clock rings by opening its dialog over whatever is shown, waking the device.
-`Foreground` does the same for an app's own activity, for what cannot wait until the person next
-opens the app, such as a reminder going off:
+An app that tells the person something at a time (an alarm, a reminder) has three things to get
+past on these devices, and the SDK has a piece for each.
+
+1. **Android must let the alarm go off.** The Speak and the Player run MediaTek's DuraSpeed, which
+   restricts every app not switched on in its own list; Android then holds the app's alarms back
+   until it is opened, so nothing goes off. `Background.restricted(context)` says whether it is so,
+   and `Background.openSettings(context)` opens the app's own battery page, where the person allows
+   it (DuraSpeed's own list is closed to other apps). Ask once, as the app first finds itself
+   restricted, where the person hears it, then say it where the app's settings are.
+2. **A notification is posted as on any phone**, on a channel of the app's own, with its buttons:
+   Orbit ships with Do Not Disturb on at its highest, Satellite lets notifications through, and
+   BackTalk says them and reads them in the shade Satellite's launcher opens (Space with N). It gives
+   the sound and the vibration, once.
+3. **It comes to the front and is said there**, as Orbit's own Alarm Clock rings: Orbit's interface
+   reads no notification by itself. `Foreground.open(context, activity, extras)` wakes the device and
+   starts the app's activity over whatever is shown, through root's `am start`, since Android starts
+   no activity for an app in the background. Say it as a `DialogScreen`: its message as a `Text`,
+   then its buttons with their letters, and let it ring no more than its notification did. Once it
+   is dealt with (or Back pressed on it), go back to where the person was with
+   `Foreground.returnToPrevious(activity)`, but only when `Foreground.openedFromBackground(intent)`
+   says the app came to the front for it, and not where a button carries on in the app.
 
 ```kotlin
-// In a BroadcastReceiver's work, off the main thread: it runs `su`.
-Foreground.open(context, MainActivity::class.java, mapOf("reminder" to id))
-    .onFailure { /* root refused: the notification posted beside it is all the person gets */ }
+// As the alarm goes off, in its BroadcastReceiver's work, off the main thread (it runs `su`):
+notificationManager.notify(id, notification)
+Foreground.open(context, MainActivity::class.java, mapOf("alarm" to id))
+    .onFailure { /* root refused: the notification is all the person gets */ }
+
+// In the activity, from onCreate and onNewIntent:
+val cameForIt = Foreground.openedFromBackground(intent)
+Foreground.heard(intent)
+// … show the alarm's DialogScreen; once it is dealt with:
+if (cameForIt) Foreground.returnToPrevious(this)
 ```
 
-- **`open(context, activity, extras)`** wakes the device and starts the activity in front through
-  root's `am start`, since Android starts no activity for an app in the background; `extras` are
-  its intent's string extras. A `singleTask` activity already running gets them in `onNewIntent`.
-  It fails, with why, where root is refused or the activity cannot be started.
-- **`wake(context)`** wakes the device for a moment and lets it sleep again by its own timeout:
-  the screen reader is silent while the device sleeps.
-
-What comes to the front should then be said as Orbit's own are, a dialog with its buttons
-(`DialogScreen`), and not ring on: a notification beside it, on a channel of its own, gives the
-sound and vibration once, through Do Not Disturb wherever Satellite lets notifications through,
-and stays in the shade Satellite's launcher opens (Space with N).
+- **`Foreground.open`** fails, with why, where root is refused or `am` refuses the activity; a
+  `singleTask` activity already running gets the extras in `onNewIntent`. **`wake`** wakes the device
+  alone, for a moment.
+- **`openedFromBackground(intent)`** is whether `open` started this intent; **`heard(intent)`** takes
+  the mark out once read, so the activity made again does not go back of itself.
+- **`returnToPrevious(activity)`** puts the app's task behind whatever was in front, its state kept.
 
 ## Below the stack
 
