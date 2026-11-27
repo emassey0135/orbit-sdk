@@ -24,7 +24,8 @@ public object Foreground {
         wake(context)
         return Root.run(command(context.packageName, activity.name, extras)).mapCatching { output ->
             // `am start` exits 0 even when it refuses, saying why on a line of its own.
-            output.lineSequence().firstOrNull { it.startsWith("Error") }?.let { throw RootFailure(it) }
+            val refused = output.lineSequence().firstOrNull { it.startsWith("Error") }
+            if (refused != null) throw RootFailure(refused)
         }
     }
 
