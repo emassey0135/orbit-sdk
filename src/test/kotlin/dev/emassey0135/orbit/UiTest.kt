@@ -740,6 +740,51 @@ class UiTest {
         assertEquals("Context menu\n\nDelete\n\n1/2", shown)
     }
 
+    /** T9's commit timeout, run when a test says the moment has passed. */
+    private class Timer : T9Input.Later {
+        private var waiting: (() -> Unit)? = null
+        override fun after(milliseconds: Long, run: () -> Unit) { waiting = run }
+        override fun cancel() { waiting = null }
+        fun pass() = waiting?.also { waiting = null }?.invoke()
+    }
+
+    /** A dialog of one line that fills the Player's screen, holding what was typed only once the app's answer comes back ([answer]). */
+    private class Typing : DialogScreen() {
+        var value = ""
+        var sent = ""
+        fun answer() { value = sent }
+        override val title = "New"
+        override val lineFills = true
+        override fun controls(): List<DialogControl> = listOf(DialogControl.Line("name", "Name", value))
+        override val focus = 0
+        override fun focusOn(at: Int) {}
+        override fun typed(line: DialogControl.Line, text: String, caret: Int) { sent = text }
+        override fun lineDone(line: DialogControl.Line, text: String) {}
+        override fun lineSet(line: DialogControl.Line, text: String) {}
+        override fun chose(choice: DialogControl.Choice, option: Int) = false
+        override fun toggled(check: DialogControl.Check): Boolean? = null
+        override fun pressed(control: DialogControl) {}
+    }
+
+    @Test fun theAppsAnswerToALetterTypedArrivingMidTapLeavesTheTappingGoingOn() {
+        val timer = Timer()
+        val player = OrbitUi(told, later = timer, delay = { _, run -> waiting += run }, now = { clock }).apply { readerReady() }
+        player.phoneKeypad = true
+        val typing = Typing()
+        player.push(typing)
+        fun tap(digit: String) = player.key(KeyEvent(digit, KeyEvent.RELEASE, false), true)
+        tap("2")
+        timer.pass()
+        assertEquals("a", typing.sent)
+        // A quick tap, then the app's answer to the "a" taken in, then two more taps.
+        tap("2")
+        typing.answer()
+        tap("2")
+        tap("2")
+        timer.pass()
+        assertEquals("ac", typing.sent)
+    }
+
     @Test fun anUnknownKeyOfAFormsValuesIsRefusedRatherThanReadAsEmpty() {
         val values = FormValues(mapOf("name" to "fig"), emptyMap(), emptyMap())
         assertEquals("fig", values.text("name"))

@@ -85,6 +85,9 @@ public class EditBox(
         return text.substring(0, at) + pending + text.substring(at)
     }
 
+    /** The text as last handed to the app (its `changed`): what is shown, less a T9 candidate not yet in. */
+    public fun sent(): String = buffer.display()
+
     /** Opens the field: Orbit says it and its text, and takes its copy to diff from. */
     public fun focus() {
         val text = buffer.display()
